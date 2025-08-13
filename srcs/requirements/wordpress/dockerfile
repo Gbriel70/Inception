@@ -6,7 +6,10 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     php-fpm php-mysql mariadb-client curl less ca-certificates iproute2 && \
     rm -rf /var/lib/apt/lists/*
 
+	
 RUN sed -i 's|^listen = .*|listen = 0.0.0.0:9000|' /etc/php/*/fpm/pool.d/www.conf
+	
+RUN ln -s /usr/sbin/php-fpm8.2 /usr/local/sbin/php-fpm
 
 RUN curl -sS -o /usr/local/bin/wp https://raw.githubusercontent.com/wp-cli/builds/gh-pages/phar/wp-cli.phar && \
     chmod +x /usr/local/bin/wp
