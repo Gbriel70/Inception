@@ -15,6 +15,7 @@ RUN curl -sS -o /usr/local/bin/wp https://raw.githubusercontent.com/wp-cli/build
 RUN mkdir -p /var/www/html && chown -R www-data:www-data /var/www/html
 
 WORKDIR /var/www/html
+
 EXPOSE 9000
 
-USER www-data
+CMD ["php-fpm", "-F"]

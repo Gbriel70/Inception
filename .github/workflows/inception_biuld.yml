@@ -44,7 +44,7 @@ jobs:
       - name: Aguardar php-fpm (porta 9000 no container wordpress)
         run: |
           set -e
-          ATTEMPTS=30
+          ATTEMPTS=10
           SLEEP=3
           echo "Aguardando php-fpm (wordpress:9000) ..."
           for i in $(seq 1 $ATTEMPTS); do
