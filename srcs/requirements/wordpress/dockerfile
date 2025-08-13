@@ -2,10 +2,9 @@ FROM debian:bookworm
 
 ENV DEBIAN_FRONTEND=noninteractive
 
-RUN apt-get update && \
-    apt-get install -y --no-install-recommends \
-      php-fpm php-mysql mariadb-client curl less ca-certificates \
-      && rm -rf /var/lib/apt/lists/*
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    php-fpm php-mysql mariadb-client curl less ca-certificates iproute2 && \
+    rm -rf /var/lib/apt/lists/*
 
 RUN sed -i 's|^listen = .*|listen = 0.0.0.0:9000|' /etc/php/*/fpm/pool.d/www.conf
 
