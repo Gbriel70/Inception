@@ -1,5 +1,11 @@
 FROM debian:buster
 
+RUN sed -i 's|deb.debian.org/debian|archive.debian.org/debian|g; s|security.debian.org/debian-security|archive.debian.org/debian-security|g' /etc/apt/sources.list && \
+    printf 'Acquire::Check-Valid-Until "false";\nAcquire::AllowInsecureRepositories "true";\n' > /etc/apt/apt.conf.d/99archive && \
+    apt-get update && \
+    apt-get install -y --no-install-recommends nginx openssl && \
+    rm -rf /var/lib/apt/lists/*
+
 RUN apt-get update && apt-get install -y nginx openssl
 
 RUN mkdir -p /etc/nginx/ssl && \
