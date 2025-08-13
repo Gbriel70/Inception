@@ -43,19 +43,34 @@ jobs:
 
       - name: Test Port 443 (HTTPS)
         run: |
-          curl -k -I https://localhost:443
-          if [ $? -eq 0 ]; then
-            echo "Port 443 is open"
-          else
-            echo "Port 443 is closed"
-          fi
+          set -e
+          ATTEMPTS=25
+          SLEEP=3
+          echo "Aguardando HTTPS em https://localhost ..."
+          for i in $(seq 1 $ATTEMPTS); do
+            CODE=$(curl -sk -o /dev/null -w '%{http_code}' https://localhost/ || true)
+            if echo "$CODE" | grep -Eq '^(200|301|302)$'; then
+              echo "OK: HTTP $CODE"
+              exit 0
+            fi
+            echo "Tentativa $i/$ATTEMPTS código=$CODE"
+            docker compose ps nginx
+            sleep $SLEEP
+          done
+          echo "FALHA: não obteve resposta aceitável."
+          docker compose logs nginx || true
+          docker exec nginx ss -tlpn || true
+          exit 1
 
-      - name: Test config intern (nginx -t)
+      - name: Verificar processo e porta dentro do container
         run: |
+          docker exec nginx ss -tlpn
           docker exec nginx nginx -t
-          if [ $? -eq 0 ]; then
-            echo "Nginx configuration is valid"
-          else
-            echo "Nginx configuration is invalid"
-            exit 1
-          fi
+
+      - name: Logs (sucesso)
+        if: success()
+        run: docker compose logs --no-color nginx
+
+      - name: Teardown
+        if: always()
+        run: docker compose down -v
