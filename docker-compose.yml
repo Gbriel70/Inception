@@ -12,12 +12,6 @@ services:
       - inception
     restart: always
 
-    wordpress:
-      image: busybox
-      command: sh -c "sleep 3600"
-      networks:
-        - inception
-
 volumes:
   wordpress_data:
     driver: local
