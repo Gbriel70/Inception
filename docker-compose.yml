@@ -14,7 +14,7 @@ services:
     depends_on:
       - wordpress
 
-wordpress:
+  wordpress:
     build: ./srcs/requirements/wordpress
     container_name: wordpress
     expose:
