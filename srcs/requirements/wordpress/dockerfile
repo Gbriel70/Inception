@@ -18,5 +18,3 @@ WORKDIR /var/www/html
 EXPOSE 9000
 
 USER www-data
-
-ENTRYPOINT ["/setup.sh"]
