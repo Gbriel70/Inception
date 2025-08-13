@@ -1,0 +1,57 @@
+name: Inception CI
+
+on:
+  push:
+    branches: [ main ]
+    paths:
+      - 'srcs/**'
+      - 'docker-compose.yml'
+      - '.github/workflows/inception_biuld.yml'
+  pull_request:
+    branches: [ main ]
+    paths:
+      - 'srcs/**'
+      - 'docker-compose.yml'
+      - '.github/workflows/inception_biuld.yml'
+
+concurrency:
+  group: nginx-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  nginx-only:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      COMPOSE_FILE: docker-compose.yml
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set nginx
+        run: |
+          docker-compose build nginx
+
+      - name: List containers
+        run: |
+            docker ps --format "table {{.ID}}\t{{.Image}}\t{{.Status}}\t{{.Ports}}"
+
+      - name: Test Port 443 (HTTPS)
+        run: |
+          curl -k -I https://localhost:443
+          if [ $? -eq 0 ]; then
+            echo "Port 443 is open"
+          else
+            echo "Port 443 is closed"
+          fi
+
+      - name: Test config intern (nginx -t)
+        run: |
+          docker exec nginx nginx -t
+          if [ $? -eq 0 ]; then
+            echo "Nginx configuration is valid"
+          else
+            echo "Nginx configuration is invalid"
+            exit 1
+          fi
