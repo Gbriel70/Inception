@@ -31,15 +31,38 @@ jobs:
 
       - name: Set nginx
         run: |
-          docker compose build nginx
+          docker compose build nginx wordpress
 
       - name: Start containers
         run: |
-          docker compose up -d nginx
+          docker compose up -d nginx wordpress
 
       - name: List containers
         run: |
             docker ps --format "table {{.ID}}\t{{.Image}}\t{{.Status}}\t{{.Ports}}"
+
+      - name: Aguardar php-fpm (porta 9000 no container wordpress)
+        run: |
+          set -e
+          ATTEMPTS=30
+          SLEEP=3
+          echo "Aguardando php-fpm (wordpress:9000) ..."
+          for i in $(seq 1 $ATTEMPTS); do
+            if docker exec wordpress sh -c "ss -tlpn 2>/dev/null | grep -q ':9000'"; then
+              echo "php-fpm ouvindo na porta 9000."
+              exit 0
+            fi
+            echo "Tentativa $i/$ATTEMPTS - ainda não escutando."
+            sleep $SLEEP
+          done
+          echo "Falha: php-fpm não escutou na porta 9000 a tempo."
+          docker compose logs wordpress || true
+          exit 1
+
+      - name: Validar php-fpm config
+        run: |
+          set -e
+          docker exec wordpress sh -c "php-fpm -t || php-fpm8.2 -t"
 
       - name: Test Port 443 (HTTPS)
         run: |
