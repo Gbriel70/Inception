@@ -31,7 +31,7 @@ jobs:
 
       - name: Set nginx
         run: |
-          docker-compose build nginx
+          docker compose build nginx
 
       - name: List containers
         run: |
