@@ -44,18 +44,22 @@ jobs:
       - name: Aguardar MariaDB pronto (mysqladmin ping)
         run: |
           set -e
-          # Carrega variáveis do .env para este shell
-          set -a; source .env; set +a
+          # Tenta obter do ambiente do container (via env_file); se não, cai pro .env local
+          ROOT_PASS="$(docker exec mariadb printenv MYSQL_ROOT_PASSWORD 2>/dev/null || true)"
+          if [ -z "$ROOT_PASS" ]; then
+            ROOT_PASS="$(grep -E '^MYSQL_ROOT_PASSWORD=' .env | cut -d= -f2-)"
+          fi
+
           ATTEMPTS=40
           SLEEP=3
           echo "Aguardando MariaDB responder ao mysqladmin ping..."
-          for i in $(seq 1 $ATTEMPTS); do
-            if docker exec mariadb sh -c "mysqladmin ping -h 127.0.0.1 -uroot -p$MYSQL_ROOT_PASSWORD --silent"; then
+          for i in $(seq 1 "$ATTEMPTS"); do
+            if docker exec mariadb sh -c "mysqladmin ping -h 127.0.0.1 -uroot -p\"${ROOT_PASS}\" --silent"; then
               echo "MariaDB pronto."
               exit 0
             fi
             echo "Tentativa $i/$ATTEMPTS..."
-            sleep $SLEEP
+            sleep "$SLEEP"
           done
           echo "Falha: MariaDB não ficou pronto a tempo."
           docker compose logs mariadb || true
