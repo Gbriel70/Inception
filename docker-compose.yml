@@ -41,6 +41,8 @@ services:
 volumes:
   wordpress_data:
     driver: local
+  mariadb_data:
+    driver: local
 
 networks:
   inception:
