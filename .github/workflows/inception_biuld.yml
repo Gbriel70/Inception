@@ -73,6 +73,11 @@ jobs:
           USER=$(docker exec mariadb printenv MYSQL_USER 2>/dev/null || grep -E '^MYSQL_USER=' .env | cut -d= -f2-)
           ROOT_PASS=$(docker exec mariadb printenv MYSQL_ROOT_PASSWORD 2>/dev/null || grep -E '^MYSQL_ROOT_PASSWORD=' .env | cut -d= -f2-)
 
+          if [ -z "$DB" ] || [ -z "$USER" ] || [ -z "$ROOT_PASS" ]; then
+            echo "Variáveis vazias: DB='$DB' USER='$USER' ROOT_PASS='${ROOT_PASS:+set}'"
+            exit 1
+          fi
+
           echo "Checando DB='$DB' e USER='$USER' via socket..."
           docker exec mariadb sh -c "mysql --protocol=socket --socket=/run/mysqld/mysqld.sock -uroot -p\"$ROOT_PASS\" -N -B -e \"SHOW DATABASES LIKE '$DB'\"" | grep -qx "$DB"
           docker exec mariadb sh -c "mysql --protocol=socket --socket=/run/mysqld/mysqld.sock -uroot -p\"$ROOT_PASS\" -N -B -e \"SELECT 1 FROM mysql.user WHERE User='$USER' LIMIT 1\"" | grep -qx "1"
