@@ -60,15 +60,23 @@ jobs:
           docker compose logs mariadb || true
           exit 1
 
+      - name: Verificar cliente e socket do MariaDB
+        run: |
+          set -e
+          docker exec mariadb sh -c "command -v mysql && mysql --version"
+          docker exec mariadb sh -c "test -S /run/mysqld/mysqld.sock && ls -l /run/mysqld/mysqld.sock"
+
       - name: Validar DB e usuário no MariaDB
         run: |
           set -e
           DB=$(docker exec mariadb printenv MYSQL_DATABASE 2>/dev/null || grep -E '^MYSQL_DATABASE=' .env | cut -d= -f2-)
           USER=$(docker exec mariadb printenv MYSQL_USER 2>/dev/null || grep -E '^MYSQL_USER=' .env | cut -d= -f2-)
           ROOT_PASS=$(docker exec mariadb printenv MYSQL_ROOT_PASSWORD 2>/dev/null || grep -E '^MYSQL_ROOT_PASSWORD=' .env | cut -d= -f2-)
-          docker exec mariadb sh -c "mysql -uroot -p\"${ROOT_PASS}\" -e \"SHOW DATABASES LIKE '${DB}';\"" | grep -q "$DB"
-          docker exec mariadb sh -c "mysql -uroot -p\"${ROOT_PASS}\" -e \"SELECT User FROM mysql.user WHERE User='${USER}';\"" | grep -q "$USER"
-          echo "DB e usuário existem."
+
+          echo "Checando DB='$DB' e USER='$USER' via socket..."
+          docker exec mariadb sh -c "mysql --protocol=socket --socket=/run/mysqld/mysqld.sock -uroot -p\"$ROOT_PASS\" -N -B -e \"SHOW DATABASES LIKE '$DB'\"" | grep -qx "$DB"
+          docker exec mariadb sh -c "mysql --protocol=socket --socket=/run/mysqld/mysqld.sock -uroot -p\"$ROOT_PASS\" -N -B -e \"SELECT 1 FROM mysql.user WHERE User='$USER' LIMIT 1\"" | grep -qx "1"
+          echo "DB e usuário OK."
 
       - name: Testar conexão ao MariaDB a partir do wordpress
         run: |
@@ -76,7 +84,7 @@ jobs:
           DB=$(docker exec mariadb printenv MYSQL_DATABASE 2>/dev/null || grep -E '^MYSQL_DATABASE=' .env | cut -d= -f2-)
           USER=$(docker exec mariadb printenv MYSQL_USER 2>/dev/null || grep -E '^MYSQL_USER=' .env | cut -d= -f2-)
           PASS=$(docker exec mariadb printenv MYSQL_PASSWORD 2>/dev/null || grep -E '^MYSQL_PASSWORD=' .env | cut -d= -f2-)
-          docker exec wordpress sh -c "mysql -h mariadb -u\"${USER}\" -p\"${PASS}\" -e 'SELECT 1' \"${DB}\""
+          docker exec wordpress sh -c "mysql -h mariadb -u\"${USER}\" -p\"${PASS}\" -N -B -e 'SELECT 1' \"${DB}\"" | grep -qx "1"
 
       - name: Aguardar php-fpm (porta 9000 no container wordpress)
         run: |
