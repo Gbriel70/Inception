@@ -6,12 +6,14 @@ on:
     paths:
       - 'srcs/**'
       - 'docker-compose.yml'
+      - '.env'
       - '.github/workflows/inception_biuld.yml'
   pull_request:
     branches: [ main ]
     paths:
       - 'srcs/**'
       - 'docker-compose.yml'
+      - '.env'
       - '.github/workflows/inception_biuld.yml'
 
 concurrency:
