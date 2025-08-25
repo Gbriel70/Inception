@@ -44,40 +44,39 @@ jobs:
       - name: Aguardar MariaDB pronto (mysqladmin ping)
         run: |
           set -e
-          # Tenta obter do ambiente do container (via env_file); se não, cai pro .env local
-          ROOT_PASS="$(docker exec mariadb printenv MYSQL_ROOT_PASSWORD 2>/dev/null || true)"
-          if [ -z "$ROOT_PASS" ]; then
-            ROOT_PASS="$(grep -E '^MYSQL_ROOT_PASSWORD=' .env | cut -d= -f2-)"
-          fi
-
+          ROOT_PASS="$(docker exec mariadb printenv MYSQL_ROOT_PASSWORD 2>/dev/null || grep -E '^MYSQL_ROOT_PASSWORD=' .env | cut -d= -f2-)"
           ATTEMPTS=40
           SLEEP=3
-          echo "Aguardando MariaDB responder ao mysqladmin ping..."
+          echo "Aguardando MariaDB..."
           for i in $(seq 1 "$ATTEMPTS"); do
             if docker exec mariadb sh -c "mysqladmin ping -h 127.0.0.1 -uroot -p\"${ROOT_PASS}\" --silent"; then
               echo "MariaDB pronto."
               exit 0
             fi
-            echo "Tentativa $i/$ATTEMPTS..."
+            docker compose logs --tail=5 mariadb || true
             sleep "$SLEEP"
           done
-          echo "Falha: MariaDB não ficou pronto a tempo."
+          echo "Falha: MariaDB não iniciou."
           docker compose logs mariadb || true
           exit 1
 
       - name: Validar DB e usuário no MariaDB
         run: |
           set -e
-          set -a; source .env; set +a
-          docker exec mariadb sh -c "mysql -uroot -p$MYSQL_ROOT_PASSWORD -e \"SHOW DATABASES LIKE '$MYSQL_DATABASE';\" | grep -q $MYSQL_DATABASE"
-          docker exec mariadb sh -c "mysql -uroot -p$MYSQL_ROOT_PASSWORD -e \"SELECT User FROM mysql.user WHERE User='$MYSQL_USER';\" | grep -q $MYSQL_USER"
+          DB=$(docker exec mariadb printenv MYSQL_DATABASE 2>/dev/null || grep -E '^MYSQL_DATABASE=' .env | cut -d= -f2-)
+          USER=$(docker exec mariadb printenv MYSQL_USER 2>/dev/null || grep -E '^MYSQL_USER=' .env | cut -d= -f2-)
+          ROOT_PASS=$(docker exec mariadb printenv MYSQL_ROOT_PASSWORD 2>/dev/null || grep -E '^MYSQL_ROOT_PASSWORD=' .env | cut -d= -f2-)
+          docker exec mariadb sh -c "mysql -uroot -p\"${ROOT_PASS}\" -e \"SHOW DATABASES LIKE '${DB}';\"" | grep -q "$DB"
+          docker exec mariadb sh -c "mysql -uroot -p\"${ROOT_PASS}\" -e \"SELECT User FROM mysql.user WHERE User='${USER}';\"" | grep -q "$USER"
           echo "DB e usuário existem."
 
       - name: Testar conexão ao MariaDB a partir do wordpress
         run: |
           set -e
-          set -a; source .env; set +a
-          docker exec wordpress sh -c "mysql -h mariadb -u$MYSQL_USER -p$MYSQL_PASSWORD -e 'SELECT 1' $MYSQL_DATABASE"
+          DB=$(docker exec mariadb printenv MYSQL_DATABASE 2>/dev/null || grep -E '^MYSQL_DATABASE=' .env | cut -d= -f2-)
+          USER=$(docker exec mariadb printenv MYSQL_USER 2>/dev/null || grep -E '^MYSQL_USER=' .env | cut -d= -f2-)
+          PASS=$(docker exec mariadb printenv MYSQL_PASSWORD 2>/dev/null || grep -E '^MYSQL_PASSWORD=' .env | cut -d= -f2-)
+          docker exec wordpress sh -c "mysql -h mariadb -u\"${USER}\" -p\"${PASS}\" -e 'SELECT 1' \"${DB}\""
 
       - name: Aguardar php-fpm (porta 9000 no container wordpress)
         run: |
