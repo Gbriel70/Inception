@@ -13,8 +13,6 @@ services:
   wordpress:
     build: ./srcs/requirements/wordpress
     container_name: wordpress
-    expose:
-      - "9000"
     volumes:
       - wordpress_data:/var/www/html
     networks:

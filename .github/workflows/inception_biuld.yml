@@ -143,6 +143,19 @@ jobs:
           set -e
           docker exec wordpress sh -c "php-fpm -t || php-fpm8.2 -t"
 
+      - name: Testar setup do WordPress
+        run: |
+          set -e
+          sleep 10  # Aguarda WordPress configurar
+          
+          # Testa se WordPress está instalado
+          docker exec wordpress wp core is-installed --allow-root
+          
+          # Testa se usuários foram criados
+          docker exec wordpress wp user list --allow-root
+          
+          echo "WordPress configurado com sucesso."
+
       - name: Test Port 443 (HTTPS)
         run: |
           set -e
