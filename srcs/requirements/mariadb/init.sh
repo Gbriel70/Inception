@@ -32,13 +32,13 @@ fi
 
 echo "Configurando bancos e usuários..."
 mysql --protocol=socket --socket=/run/mysqld/mysqld.sock -u root <<-SQL
-  -- mantém root por socket; cria DB/usuário app
+  ALTER USER 'root'@'localhost' IDENTIFIED BY '${MYSQL_ROOT_PASSWORD}';
   CREATE DATABASE IF NOT EXISTS \`${MYSQL_DATABASE}\` CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci;
   CREATE USER IF NOT EXISTS '${MYSQL_USER}'@'%' IDENTIFIED BY '${MYSQL_PASSWORD}';
   GRANT ALL PRIVILEGES ON \`${MYSQL_DATABASE}\`.* TO '${MYSQL_USER}'@'%';
   FLUSH PRIVILEGES;
 SQL
 
-mysqladmin --protocol=socket --socket=/run/mysqld/mysqld.sock -u root shutdown
+mysqladmin --protocol=socket --socket=/run/mysqld/mysqld.sock -u root -p"${MYSQL_ROOT_PASSWORD}" shutdown
 
 exec mariadbd --user=mysql --datadir=/var/lib/mysql --bind-address=0.0.0.0 --socket=/run/mysqld/mysqld.sock
