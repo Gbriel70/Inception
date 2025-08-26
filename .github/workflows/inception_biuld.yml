@@ -143,15 +143,34 @@ jobs:
           set -e
           docker exec wordpress sh -c "php-fpm -t || php-fpm8.2 -t"
 
+      - name: Debug WordPress container
+        run: |
+          echo "=== Debug WordPress ==="
+          docker exec wordpress pwd
+          docker exec wordpress ls -la /var/www/html/
+          docker exec wordpress printenv | grep WORDPRESS || true
+          docker compose logs --tail=20 wordpress
+
       - name: Testar setup do WordPress
         run: |
           set -e
-          sleep 10  # Aguarda WordPress configurar
           
-          # Testa se WordPress está instalado
-          docker exec wordpress wp core is-installed --allow-root
+          echo "Aguardando WordPress configurar (30s)..."
+          sleep 30
           
-          # Testa se usuários foram criados
+          echo "Verificando diretório do WordPress..."
+          docker exec wordpress ls -la /var/www/html/
+          
+          echo "Testando se WordPress está instalado..."
+          if docker exec wordpress wp core is-installed --allow-root; then
+            echo "WordPress instalado com sucesso!"
+          else
+            echo "WordPress não está instalado. Logs:"
+            docker compose logs wordpress
+            exit 1
+          fi
+          
+          echo "Listando usuários do WordPress..."
           docker exec wordpress wp user list --allow-root
           
           echo "WordPress configurado com sucesso."

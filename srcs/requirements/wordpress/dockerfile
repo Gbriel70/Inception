@@ -14,10 +14,13 @@ RUN ln -s /usr/sbin/php-fpm8.2 /usr/local/sbin/php-fpm
 RUN curl -sS -o /usr/local/bin/wp https://raw.githubusercontent.com/wp-cli/builds/gh-pages/phar/wp-cli.phar && \
     chmod +x /usr/local/bin/wp
 
-RUN mkdir -p /var/www/html && chown -R www-data:www-data /var/www/html
+RUN mkdir -p /var/www/html && \
+	chown -R www-data:www-data /var/www/html
+
+COPY setup.sh /setup.sh
+RUN chmod +x /setup.sh
 
 WORKDIR /var/www/html
-
 EXPOSE 9000
 
-CMD ["php-fpm", "-F"]
+ENTRYPOINT [ "/setup.sh" ]
