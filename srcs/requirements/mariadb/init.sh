@@ -41,71 +41,35 @@ if [ "$READY" -ne 1 ]; then
   exit 1
 fi
 
-# Helper: executa SQL como root com debug
-sql_root() {
-  echo "Executando SQL: $1"
-  if mysql --protocol=socket --socket=/run/mysqld/mysqld.sock -uroot -N -B -e "$1" 2>/dev/null; then
-    echo "SQL executado com sucesso (sem senha)"
-    return 0
-  elif mysql --protocol=socket --socket=/run/mysqld/mysqld.sock -uroot -p"${MYSQL_ROOT_PASSWORD}" -N -B -e "$1" 2>/dev/null; then
-    echo "SQL executado com sucesso (com senha)"
-    return 0
-  else
-    echo "ERRO: Falha ao executar SQL: $1"
-    return 1
-  fi
-}
-
 echo "=== Configurando root/DB/usuário ==="
 
-# Define senha do root
-echo "1. Configurando senha do root..."
-sql_root "ALTER USER 'root'@'localhost' IDENTIFIED BY '${MYSQL_ROOT_PASSWORD}'" || echo "Aviso: Falha ao alterar senha do root (pode já estar configurada)"
+# Executa todos os comandos SQL de uma vez
+echo "Executando configuração SQL..."
+mysql --protocol=socket --socket=/run/mysqld/mysqld.sock -uroot <<-SQL
+  -- Define senha do root
+  SET PASSWORD FOR 'root'@'localhost' = PASSWORD('${MYSQL_ROOT_PASSWORD}');
+  
+  -- Cria database
+  CREATE DATABASE IF NOT EXISTS \`${MYSQL_DATABASE}\` CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci;
+  
+  -- Cria usuário
+  CREATE USER IF NOT EXISTS '${MYSQL_USER}'@'%' IDENTIFIED BY '${MYSQL_PASSWORD}';
+  
+  -- Concede privilégios
+  GRANT ALL PRIVILEGES ON \`${MYSQL_DATABASE}\`.* TO '${MYSQL_USER}'@'%';
+  
+  -- Flush privileges
+  FLUSH PRIVILEGES;
+  
+  -- Verifica criação
+  SHOW DATABASES LIKE '${MYSQL_DATABASE}';
+  SELECT User, Host FROM mysql.user WHERE User='${MYSQL_USER}';
+SQL
 
-# Cria DB
-echo "2. Criando database..."
-if sql_root "CREATE DATABASE IF NOT EXISTS \`${MYSQL_DATABASE}\` CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci"; then
-  echo "Database criada/já existe."
-else
-  echo "ERRO: Falha ao criar database"
-  exit 1
-fi
-
-# Cria usuário
-echo "3. Criando usuário..."
-if sql_root "CREATE USER IF NOT EXISTS '${MYSQL_USER}'@'%' IDENTIFIED BY '${MYSQL_PASSWORD}'"; then
-  echo "Usuário criado/já existe."
-else
-  echo "ERRO: Falha ao criar usuário"
-  exit 1
-fi
-
-# Concede privilégios
-echo "4. Concedendo privilégios..."
-if sql_root "GRANT ALL PRIVILEGES ON \`${MYSQL_DATABASE}\`.* TO '${MYSQL_USER}'@'%'"; then
-  echo "Privilégios concedidos."
-else
-  echo "ERRO: Falha ao conceder privilégios"
-  exit 1
-fi
-
-# Flush privileges
-echo "5. Flush privileges..."
-if sql_root "FLUSH PRIVILEGES"; then
-  echo "Privileges flushed."
-else
-  echo "ERRO: Falha no flush privileges"
-  exit 1
-fi
-
-# Verifica se foi criado
-echo "=== Verificando criação ==="
-sql_root "SHOW DATABASES LIKE '${MYSQL_DATABASE}'" || echo "ERRO: Database não encontrada"
-sql_root "SELECT User,Host FROM mysql.user WHERE User='${MYSQL_USER}'" || echo "ERRO: Usuário não encontrado"
+echo "Configuração SQL concluída."
 
 echo "Desligando instância temporária..."
-mysqladmin --protocol=socket --socket=/run/mysqld/mysqld.sock -uroot -p"${MYSQL_ROOT_PASSWORD}" shutdown \
-|| mysqladmin --protocol=socket --socket=/run/mysqld/mysqld.sock -uroot shutdown
+mysqladmin --protocol=socket --socket=/run/mysqld/mysqld.sock -uroot -p"${MYSQL_ROOT_PASSWORD}" shutdown
 
 echo "Iniciando MariaDB em modo definitivo..."
 exec mariadbd --user=mysql --datadir=/var/lib/mysql --bind-address=0.0.0.0 --socket=/run/mysqld/mysqld.sock

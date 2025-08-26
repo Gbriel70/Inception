@@ -80,13 +80,26 @@ jobs:
 
           echo "Checando DB='$DB' e USER='$USER' via socket..."
           
-          # Verifica se o banco existe (usando SHOW DATABASES)
+          # Aguarda um pouco para garantir que o MariaDB terminou a inicialização
+          sleep 5
+          
+          # Verifica se o banco existe
           echo "Verificando banco de dados..."
-          docker exec mariadb sh -c "mysql --protocol=socket --socket=/run/mysqld/mysqld.sock -uroot -p\"$ROOT_PASS\" -N -B -e 'SHOW DATABASES'" | grep -qx "$DB"
+          if docker exec mariadb sh -c "mysql --protocol=socket --socket=/run/mysqld/mysqld.sock -uroot -p\"$ROOT_PASS\" -N -B -e 'SHOW DATABASES LIKE \"$DB\"'" | grep -qx "$DB"; then
+            echo "Banco '$DB' encontrado."
+          else
+            echo "ERRO: Banco '$DB' não encontrado."
+            exit 1
+          fi
           
           # Verifica se o usuário existe
           echo "Verificando usuário..."
-          docker exec mariadb sh -c "mysql --protocol=socket --socket=/run/mysqld/mysqld.sock -uroot -p\"$ROOT_PASS\" -N -B -e \"SELECT User FROM mysql.user WHERE User='$USER' AND Host='%'\"" | grep -qx "$USER"
+          if docker exec mariadb sh -c "mysql --protocol=socket --socket=/run/mysqld/mysqld.sock -uroot -p\"$ROOT_PASS\" -N -B -e \"SELECT User FROM mysql.user WHERE User='$USER' AND Host='%'\"" | grep -qx "$USER"; then
+            echo "Usuário '$USER' encontrado."
+          else
+            echo "ERRO: Usuário '$USER' não encontrado."
+            exit 1
+          fi
           
           echo "DB e usuário OK."
 
