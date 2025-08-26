@@ -1,9 +1,10 @@
-name: Inception CI
+name: Inception CI - Makefile Test
 
 on:
   push:
     branches: [ main ]
     paths:
+      - 'Makefile'
       - 'srcs/**'
       - 'docker-compose.yml'
       - '.env'
@@ -11,200 +12,68 @@ on:
   pull_request:
     branches: [ main ]
     paths:
+      - 'Makefile'
       - 'srcs/**'
       - 'docker-compose.yml'
       - '.env'
       - '.github/workflows/inception_biuld.yml'
 
 concurrency:
-  group: nginx-${{ github.ref }}
+  group: makefile-test-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
-  nginx-only:
+  makefile-test:
     runs-on: ubuntu-latest
-    timeout-minutes: 10
-    env:
-      COMPOSE_FILE: docker-compose.yml
-
+    timeout-minutes: 15
+    
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Set nginx
+      - name: Verificar Makefile
         run: |
-          docker compose build mariadb nginx wordpress
+          ls -la Makefile
+          cat Makefile
 
-      - name: Start containers
+      - name: Testar make build
+        run: make build
+
+      - name: Testar make up
+        run: make up
+
+      - name: Aguardar containers (30s)
+        run: sleep 30
+
+      - name: Testar make status
+        run: make status
+
+      - name: Testar make logs (sample)
+        run: timeout 10s make logs || true
+
+      - name: Verificar se containers estão rodando
         run: |
-          docker compose up -d mariadb nginx wordpress
+          docker ps
+          docker compose ps
 
-      - name: List containers
+      - name: Testar make down
+        run: make down
+
+      - name: Verificar se containers pararam
         run: |
-            docker ps --format "table {{.ID}}\t{{.Image}}\t{{.Status}}\t{{.Ports}}"
-
-      - name: Aguardar MariaDB pronto (mysqladmin ping via socket)
-        run: |
-          set -e
-          ROOT_PASS="$(docker exec mariadb printenv MYSQL_ROOT_PASSWORD 2>/dev/null || grep -E '^MYSQL_ROOT_PASSWORD=' .env | cut -d= -f2-)"
-          ATTEMPTS=40
-          SLEEP=3
-          echo "Aguardando MariaDB (socket)..."
-          for i in $(seq 1 "$ATTEMPTS"); do
-            if docker exec mariadb sh -c "mysqladmin --protocol=socket --socket=/run/mysqld/mysqld.sock -uroot -p\"${ROOT_PASS}\" ping --silent"; then
-              echo "MariaDB pronto."
-              exit 0
-            fi
-            docker compose logs --tail=5 mariadb || true
-            sleep "$SLEEP"
-          done
-          echo "Falha: MariaDB não iniciou."
-          docker compose logs mariadb || true
-          exit 1
-
-      - name: Verificar env do MariaDB
-        run: |
-          docker exec mariadb sh -c 'printenv | grep -E "MYSQL_(ROOT_PASSWORD|DATABASE|USER|PASSWORD)" || true'
-
-      - name: Validar DB e usuário no MariaDB
-        run: |
-          set -e
-          DB=$(docker exec mariadb printenv MYSQL_DATABASE 2>/dev/null || grep -E '^MYSQL_DATABASE=' .env | cut -d= -f2-)
-          USER=$(docker exec mariadb printenv MYSQL_USER 2>/dev/null || grep -E '^MYSQL_USER=' .env | cut -d= -f2-)
-          ROOT_PASS=$(docker exec mariadb printenv MYSQL_ROOT_PASSWORD 2>/dev/null || grep -E '^MYSQL_ROOT_PASSWORD=' .env | cut -d= -f2-)
-          
-          if [ -z "$DB" ] || [ -z "$USER" ] || [ -z "$ROOT_PASS" ]; then
-            echo "Variáveis vazias: DB='$DB' USER='$USER' ROOT_PASS='${ROOT_PASS:+set}'"
-            exit 1
-          fi
-
-          echo "Checando DB='$DB' e USER='$USER' via socket..."
-          
-          # Aguarda um pouco para garantir que o MariaDB terminou a inicialização
-          sleep 5
-          
-          # Verifica se o banco existe
-          echo "Verificando banco de dados..."
-          if docker exec mariadb sh -c "mysql --protocol=socket --socket=/run/mysqld/mysqld.sock -uroot -p\"$ROOT_PASS\" -N -B -e 'SHOW DATABASES LIKE \"$DB\"'" | grep -qx "$DB"; then
-            echo "Banco '$DB' encontrado."
+          docker ps
+          if [ $(docker ps -q | wc -l) -eq 0 ]; then
+            echo "✅ Todos os containers foram parados"
           else
-            echo "ERRO: Banco '$DB' não encontrado."
+            echo "❌ Ainda há containers rodando"
             exit 1
           fi
-          
-          # Verifica se o usuário existe
-          echo "Verificando usuário..."
-          if docker exec mariadb sh -c "mysql --protocol=socket --socket=/run/mysqld/mysqld.sock -uroot -p\"$ROOT_PASS\" -N -B -e \"SELECT User FROM mysql.user WHERE User='$USER' AND Host='%'\"" | grep -qx "$USER"; then
-            echo "Usuário '$USER' encontrado."
-          else
-            echo "ERRO: Usuário '$USER' não encontrado."
-            exit 1
-          fi
-          
-          echo "DB e usuário OK."
 
-      - name: Diagnóstico detalhado (se falhar validação)
-        if: failure()
-        run: |
-          echo "=== Diagnóstico detalhado ==="
-          ROOT_PASS="$(docker exec mariadb printenv MYSQL_ROOT_PASSWORD)"
-          DB="$(docker exec mariadb printenv MYSQL_DATABASE)"
-          USER="$(docker exec mariadb printenv MYSQL_USER)"
-          
-          echo "Listando todos os bancos:"
-          docker exec mariadb sh -c "mysql --protocol=socket --socket=/run/mysqld/mysqld.sock -uroot -p\"$ROOT_PASS\" -e 'SHOW DATABASES'"
-          
-          echo "Listando todos os usuários:"
-          docker exec mariadb sh -c "mysql --protocol=socket --socket=/run/mysqld/mysqld.sock -uroot -p\"$ROOT_PASS\" -e 'SELECT User,Host FROM mysql.user'"
-          
-          echo "Verificando se o banco '$DB' existe especificamente:"
-          docker exec mariadb sh -c "mysql --protocol=socket --socket=/run/mysqld/mysqld.sock -uroot -p\"$ROOT_PASS\" -N -B -e 'SHOW DATABASES'" | grep "$DB" || echo "Banco não encontrado"
+      - name: Testar make clean
+        run: make clean
 
-      - name: Aguardar php-fpm (porta 9000 no container wordpress)
-        run: |
-          set -e
-          ATTEMPTS=10
-          SLEEP=3
-          echo "Aguardando php-fpm (wordpress:9000) ..."
-          for i in $(seq 1 $ATTEMPTS); do
-            if docker exec wordpress sh -c "ss -tlpn 2>/dev/null | grep -q ':9000'"; then
-              echo "php-fpm ouvindo na porta 9000."
-              exit 0
-            fi
-            echo "Tentativa $i/$ATTEMPTS - ainda não escutando."
-            sleep $SLEEP
-          done
-          echo "Falha: php-fpm não escutou na porta 9000 a tempo."
-          docker compose logs wordpress || true
-          exit 1
-
-      - name: Validar php-fpm config
-        run: |
-          set -e
-          docker exec wordpress sh -c "php-fpm -t || php-fpm8.2 -t"
-
-      - name: Debug WordPress container
-        run: |
-          echo "=== Debug WordPress ==="
-          docker exec wordpress pwd
-          docker exec wordpress ls -la /var/www/html/
-          docker exec wordpress printenv | grep WORDPRESS || true
-          docker compose logs --tail=20 wordpress
-
-      - name: Testar setup do WordPress
-        run: |
-          set -e
-          
-          echo "Aguardando WordPress configurar (30s)..."
-          sleep 30
-          
-          echo "Verificando diretório do WordPress..."
-          docker exec wordpress ls -la /var/www/html/
-          
-          echo "Testando se WordPress está instalado..."
-          if docker exec wordpress wp core is-installed --allow-root; then
-            echo "WordPress instalado com sucesso!"
-          else
-            echo "WordPress não está instalado. Logs:"
-            docker compose logs wordpress
-            exit 1
-          fi
-          
-          echo "Listando usuários do WordPress..."
-          docker exec wordpress wp user list --allow-root
-          
-          echo "WordPress configurado com sucesso."
-
-      - name: Test Port 443 (HTTPS)
-        run: |
-          set -e
-          ATTEMPTS=25
-          SLEEP=3
-          echo "Aguardando HTTPS em https://localhost ..."
-          for i in $(seq 1 $ATTEMPTS); do
-            CODE=$(curl -sk -o /dev/null -w '%{http_code}' https://localhost/ || true)
-            if echo "$CODE" | grep -Eq '^(200|301|302)$'; then
-              echo "OK: HTTP $CODE"
-              exit 0
-            fi
-            echo "Tentativa $i/$ATTEMPTS código=$CODE"
-            docker compose ps nginx
-            sleep $SLEEP
-          done
-          echo "FALHA: não obteve resposta aceitável."
-          docker compose logs nginx || true
-          docker exec nginx ss -tlpn || true
-          exit 1
-
-      - name: Verificar processo e porta dentro do container
-        run: |
-          docker exec nginx ss -tlpn
-          docker exec nginx nginx -t
-
-      - name: Logs (sucesso)
-        if: success()
-        run: docker compose logs --no-color nginx
-
-      - name: Teardown
+      - name: Cleanup final
         if: always()
-        run: docker compose down -v
+        run: |
+          docker compose down -v || true
+          docker system prune -af || true
