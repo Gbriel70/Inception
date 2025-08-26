@@ -19,22 +19,26 @@ mariadbd --user=mysql --datadir=/var/lib/mysql \
   --bind-address=127.0.0.1 --socket=/run/mysqld/mysqld.sock --skip-networking=0 &
 PID=$!
 
+READY=0
 for i in $(seq 1 60); do
   if mysqladmin --protocol=socket --socket=/run/mysqld/mysqld.sock ping --silent; then
-    break
+    READY=1; break
   fi
   sleep 1
 done
+if [ "$READY" -ne 1 ]; then
+  echo "MariaDB não ficou pronto."; exit 1
+fi
 
 echo "Configurando bancos e usuários..."
 mysql --protocol=socket --socket=/run/mysqld/mysqld.sock -u root <<-SQL
-  ALTER USER 'root'@'localhost' IDENTIFIED BY '${MYSQL_ROOT_PASSWORD}';
+  -- mantém root por socket; cria DB/usuário app
   CREATE DATABASE IF NOT EXISTS \`${MYSQL_DATABASE}\` CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci;
   CREATE USER IF NOT EXISTS '${MYSQL_USER}'@'%' IDENTIFIED BY '${MYSQL_PASSWORD}';
   GRANT ALL PRIVILEGES ON \`${MYSQL_DATABASE}\`.* TO '${MYSQL_USER}'@'%';
   FLUSH PRIVILEGES;
 SQL
 
-mysqladmin --protocol=socket --socket=/run/mysqld/mysqld.sock -u root -p"${MYSQL_ROOT_PASSWORD}" shutdown
+mysqladmin --protocol=socket --socket=/run/mysqld/mysqld.sock -u root shutdown
 
 exec mariadbd --user=mysql --datadir=/var/lib/mysql --bind-address=0.0.0.0 --socket=/run/mysqld/mysqld.sock

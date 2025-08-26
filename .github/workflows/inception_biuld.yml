@@ -72,15 +72,16 @@ jobs:
           DB=$(docker exec mariadb printenv MYSQL_DATABASE 2>/dev/null || grep -E '^MYSQL_DATABASE=' .env | cut -d= -f2-)
           USER=$(docker exec mariadb printenv MYSQL_USER 2>/dev/null || grep -E '^MYSQL_USER=' .env | cut -d= -f2-)
           ROOT_PASS=$(docker exec mariadb printenv MYSQL_ROOT_PASSWORD 2>/dev/null || grep -E '^MYSQL_ROOT_PASSWORD=' .env | cut -d= -f2-)
+          [ -n "$DB" ] && [ -n "$USER" ] || { echo "Vars vazias"; exit 1; }
 
-          if [ -z "$DB" ] || [ -z "$USER" ] || [ -z "$ROOT_PASS" ]; then
-            echo "Variáveis vazias: DB='$DB' USER='$USER' ROOT_PASS='${ROOT_PASS:+set}'"
-            exit 1
-          fi
+          echo "Checando DB='$DB' e USER='$USER' via socket..."
+          docker exec mariadb sh -c "
+            mysql --protocol=socket --socket=/run/mysqld/mysqld.sock -uroot -N -B -e \"SELECT SCHEMA_NAME FROM INFORMATION_SCHEMA.SCHEMATA WHERE SCHEMA_NAME='$DB'\" \
+            || mysql --protocol=socket --socket=/run/mysqld/mysqld.sock -uroot -p\"$ROOT_PASS\" -N -B -e \"SELECT SCHEMA_NAME FROM INFORMATION_SCHEMA.SCHEMATA WHERE SCHEMA_NAME='$DB'\" " | grep -qx "$DB"
 
-          echo "Checando DB e usuário..."
-          docker exec mariadb sh -c "mysql --protocol=socket --socket=/run/mysqld/mysqld.sock -uroot -p\"$ROOT_PASS\" -N -B -e \"SELECT SCHEMA_NAME FROM INFORMATION_SCHEMA.SCHEMATA WHERE SCHEMA_NAME='$DB'\"" | grep -qx "$DB"
-          docker exec mariadb sh -c "mysql --protocol=socket --socket=/run/mysqld/mysqld.sock -uroot -p\"$ROOT_PASS\" -N -B -e \"SELECT 1 FROM mysql.user WHERE User='$USER' AND Host='%' LIMIT 1\"" | grep -qx "1"
+          docker exec mariadb sh -c "
+            mysql --protocol=socket --socket=/run/mysqld/mysqld.sock -uroot -N -B -e \"SELECT 1 FROM mysql.user WHERE User='$USER' AND Host='%' LIMIT 1\" \
+            || mysql --protocol=socket --socket=/run/mysqld/mysqld.sock -uroot -p\"$ROOT_PASS\" -N -B -e \"SELECT 1 FROM mysql.user WHERE User='$USER' AND Host='%' LIMIT 1\" " | grep -qx "1"
           echo "DB e usuário OK."
 
       - name: Diagnóstico (se falhar validação)
