@@ -11,20 +11,20 @@ cpy:
 
 build:
 	@echo "Building containers..."
-	docker-compose -f $(COMPOSE_FILE) build
+	docker compose -f $(COMPOSE_FILE) build
 
 up:
 	@echo "Starting containers..."
 	@mkdir -p $(DATA_PATH)/mariadb $(DATA_PATH)/wordpress
-	docker-compose -f $(COMPOSE_FILE) up -d
+	docker compose -f $(COMPOSE_FILE) up -d
 
 down:
 	@echo "Stopping containers..."
-	docker-compose -f $(COMPOSE_FILE) down
+	docker compose -f $(COMPOSE_FILE) down
 
 clean: down
 	@echo "Cleaning containers and images..."
-	docker-compose -f $(COMPOSE_FILE) down -v --rmi all
+	docker compose -f $(COMPOSE_FILE) down -v --rmi all
 	docker system prune -af
 
 fclean: clean
@@ -35,7 +35,7 @@ fclean: clean
 re: fclean all
 
 logs:
-	docker-compose -f $(COMPOSE_FILE) logs -f
+	docker compose -f $(COMPOSE_FILE) logs -f
 
 status:
-	docker-compose -f $(COMPOSE_FILE) ps
+	docker compose -f $(COMPOSE_FILE) ps
