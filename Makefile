@@ -4,9 +4,9 @@ PATH = /home/bola/pass.txt
 COMPOSE_FILE = docker-compose.yml
 DATA_PATH = /home/$(USER)/data
 
-all: cp build up
+all: cpy build up
 
-cp:
+cpy:
 	cp $(PATH) .env
 
 build:
