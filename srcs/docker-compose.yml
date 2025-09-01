@@ -1,6 +1,6 @@
 services:
   mariadb:
-    build: ./srcs/requirements/mariadb
+    build: ./requirements/mariadb
     container_name: mariadb
     restart: always
     volumes:
@@ -11,7 +11,7 @@ services:
       - .env
 
   wordpress:
-    build: ./srcs/requirements/wordpress
+    build: ./requirements/wordpress
     container_name: wordpress
     volumes:
       - wordpress_data:/var/www/html
@@ -24,7 +24,7 @@ services:
       - mariadb
 
   nginx:
-    build: ./srcs/requirements/nginx
+    build: ./requirements/nginx
     container_name: nginx
     ports:
       - "443:443"
