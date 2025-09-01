@@ -1,10 +1,13 @@
 .PHONY: all build up down clean fclean re logs status
 
-# Variáveis
+PATH = /home/bola/pass.txt
 COMPOSE_FILE = docker-compose.yml
 DATA_PATH = /home/$(USER)/data
 
 all: build up
+
+cp:
+	cp $(PATH) .env
 
 build:
 	@echo "Building containers..."
