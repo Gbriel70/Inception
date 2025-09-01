@@ -1,13 +1,13 @@
 .PHONY: all build up down clean fclean re logs status
 
-PATH = /home/bola/pass.txt
+PATH_PASS = /home/bola/pass.txt
 COMPOSE_FILE = docker-compose.yml
 DATA_PATH = /home/$(USER)/data
 
 all: cpy build up
 
 cpy:
-	@if [ -f $(PATH) ]; then /bin/cp $(PATH) .env; else echo "Arquivo $(PATH) não encontrado!"; exit 1; fi
+	@if [ -f $(PATH_PASS) ]; then /bin/cp $(PATH_PASS) .env; else echo "Arquivo $(PATH_PASS) não encontrado!"; exit 1; fi
 
 build:
 	@echo "Building containers..."
