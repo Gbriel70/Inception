@@ -7,7 +7,7 @@ DATA_PATH = /home/$(USER)/data
 all: cpy build up
 
 cpy:
-	@if [ -f $(PATH) ]; then cp $(PATH) .env; else echo "Arquivo $(PATH) não encontrado!"; exit 1; fi
+	@if [ -f $(PATH) ]; then /bin/cp $(PATH) .env; else echo "Arquivo $(PATH) não encontrado!"; exit 1; fi
 
 build:
 	@echo "Building containers..."
