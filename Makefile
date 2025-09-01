@@ -1,7 +1,7 @@
 .PHONY: all build up down clean fclean re logs status
 
 PATH = /home/bola/pass.txt
-COMPOSE_FILE = docker-compose.yml
+COMPOSE_FILE = .docker-compose.yml
 DATA_PATH = /home/$(USER)/data
 
 all: cpy build up
