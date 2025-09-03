@@ -43,7 +43,6 @@ fi
 
 echo "=== Configurando root/DB/usuário ==="
 
-# Executa todos os comandos SQL de uma vez
 echo "Executando configuração SQL..."
 mysql --protocol=socket --socket=/run/mysqld/mysqld.sock -uroot <<-SQL
   -- Define senha do root

@@ -20,7 +20,6 @@ if [ ! -f wp-config.php ]; then
 
   rm -rf /var/www/html/*
   
-  # Baixa WordPress
   wp core download --allow-root
   echo "WordPress baixado."
   
