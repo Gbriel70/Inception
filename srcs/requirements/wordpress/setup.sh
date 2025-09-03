@@ -17,14 +17,14 @@ echo "Verificando se WordPress já está instalado..."
 if [ ! -f wp-config.php ]; then
   echo "WordPress não encontrado. Baixando..."
   
-  # Remove qualquer arquivo antigo
+
   rm -rf /var/www/html/*
   
   # Baixa WordPress
   wp core download --allow-root
   echo "WordPress baixado."
   
-  # Cria configuração
+
   echo "Criando wp-config.php..."
   wp config create \
     --dbname="$WORDPRESS_DB_NAME" \
@@ -34,7 +34,7 @@ if [ ! -f wp-config.php ]; then
     --allow-root
   echo "wp-config.php criado."
   
-  # Instala WordPress
+
   echo "Instalando WordPress..."
   wp core install \
     --url="$WORDPRESS_URL" \
@@ -46,7 +46,6 @@ if [ ! -f wp-config.php ]; then
     --allow-root
   echo "WordPress instalado."
   
-  # Cria usuário adicional
   echo "Criando usuário adicional..."
   wp user create "$WORDPRESS_USER" "$WORDPRESS_USER_EMAIL" \
     --role=author \
