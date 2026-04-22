@@ -1,0 +1,17 @@
+FROM redis:8-alpine
+
+RUN mkdir -p /usr/local/etc/redis
+
+COPY redis.conf /usr/local/etc/redis/redis.conf
+COPY set.sh /set.sh
+
+USER root
+RUN chmod +x /set.sh && \
+    chown -R redis:redis /usr/local/etc/redis && \
+    chmod 600 /usr/local/etc/redis/redis.conf
+
+USER redis
+
+EXPOSE 6379
+
+ENTRYPOINT ["/set.sh"]

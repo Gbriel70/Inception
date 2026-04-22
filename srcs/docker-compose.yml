@@ -7,8 +7,36 @@ services:
       - mariadb_data:/var/lib/mysql
     networks:
       - inception
-    env_file:
-      - ../.env
+    secrets:
+      - mysql_root_password
+      - mysql_database
+      - mysql_user
+      - mysql_password
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    build: ./requirements/redis
+    container_name: redis
+    restart: always
+    volumes:
+      - redis_data:/data
+    networks:
+      - inception
+    secrets:
+      - redis_password
+    depends_on:
+      mariadb:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "redis-cli -a $(cat /run/secrets/redis_password) ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
 
   wordpress:
     build: ./requirements/wordpress
@@ -18,10 +46,33 @@ services:
     networks:
       - inception
     restart: always
-    env_file:
-      - ../.env
+    secrets:
+      - mysql_root_password
+      - mysql_database
+      - mysql_user
+      - mysql_password
+      - wordpress_url
+      - wordpress_title
+      - wordpress_admin_user
+      - wordpress_admin_password
+      - wordpress_admin_email
+      - wordpress_user
+      - wordpress_user_password
+      - wordpress_user_email
+      - redis_password
+      - redis_host
+      - redis_port
     depends_on:
-      - mariadb
+      mariadb:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "test", "-f", "/var/www/html/wp-config.php", "-a", "-f", "/var/www/html/index.php"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
 
   nginx:
     build: ./requirements/nginx
@@ -34,7 +85,16 @@ services:
       - inception
     restart: always
     depends_on:
-      - wordpress
+      mariadb:
+        condition: service_healthy
+      wordpress:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "-k", "-s",  "https://localhost/"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
 
 volumes:
   wordpress_data:
@@ -42,14 +102,48 @@ volumes:
     driver_opts:
       type: none
       o: bind
-      device: /home/bola/data/wordpress
+      device: /home/${USER}/data/wordpress
   mariadb_data:
     driver: local
     driver_opts:
       type: none
       o: bind
-      device: /home/bola/data/mariadb
+      device: /home/${USER}/data/mariadb
+  redis_data:
+    driver: local
 
 networks:
   inception:
     driver: bridge
+
+secrets:
+  mysql_root_password:  
+    file: ./secrets/mysql/mysql_root_password.txt
+  mysql_database:
+    file: ./secrets/mysql/mysql_database.txt
+  mysql_user:
+    file: ./secrets/mysql/mysql_user.txt
+  mysql_password:
+    file: ./secrets/mysql/mysql_password.txt
+  wordpress_url:
+    file: ./secrets/wordpress/wordpress_url.txt
+  wordpress_title:
+    file: ./secrets/wordpress/wordpress_title.txt
+  wordpress_admin_user:
+    file: ./secrets/wordpress/wordpress_admin_user.txt
+  wordpress_admin_password:
+    file: ./secrets/wordpress/wordpress_admin_password.txt
+  wordpress_admin_email:
+    file: ./secrets/wordpress/wordpress_admin_email.txt
+  wordpress_user:
+    file: ./secrets/wordpress/wordpress_user.txt
+  wordpress_user_password:
+    file: ./secrets/wordpress/wordpress_user_password.txt
+  wordpress_user_email:
+    file: ./secrets/wordpress/wordpress_user_email.txt  
+  redis_password:
+    file: ./secrets/redis/redis_password.txt
+  redis_host:
+    file: ./secrets/redis/redis_host.txt
+  redis_port:
+    file: ./secrets/redis/redis_port.txt

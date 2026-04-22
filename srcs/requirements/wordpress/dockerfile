@@ -3,24 +3,46 @@ FROM debian:bookworm
 ENV DEBIAN_FRONTEND=noninteractive
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    php-fpm php-mysql mariadb-client curl less ca-certificates iproute2 && \
+    php-fpm \
+    php-mysql \
+    php-dom \
+    php-exif \
+    php-fileinfo \
+    php-mbstring \
+    php-xml \
+    mariadb-client \
+    curl \
+    ca-certificates && \
     rm -rf /var/lib/apt/lists/*
 
-	
+# Configurar PHP-FPM para escutar em todas as interfaces
 RUN sed -i 's|^listen = .*|listen = 0.0.0.0:9000|' /etc/php/*/fpm/pool.d/www.conf
-	
+
+# Symlink para php-fpm
 RUN ln -s /usr/sbin/php-fpm8.2 /usr/local/sbin/php-fpm
 
+# Instalar wp-cli
 RUN curl -sS -o /usr/local/bin/wp https://raw.githubusercontent.com/wp-cli/builds/gh-pages/phar/wp-cli.phar && \
-    chmod +x /usr/local/bin/wp
+    chmod +x /usr/local/bin/wp && \
+    wp --allow-root --version
 
+# Criar diretório de WordPress
 RUN mkdir -p /var/www/html && \
-	chown -R www-data:www-data /var/www/html
+    chown -R www-data:www-data /var/www/html && \
+    chmod 755 /var/www/html
 
+# Baixar plugin redis-cache na imagem (instalado em runtime pelo setup.sh)
+RUN curl -fsSL -o /tmp/redis-cache.zip https://downloads.wordpress.org/plugin/redis-cache.latest-stable.zip
+
+# Copiar setup script
 COPY setup.sh /setup.sh
 RUN chmod +x /setup.sh
 
 WORKDIR /var/www/html
 EXPOSE 9000
 
-ENTRYPOINT [ "/setup.sh" ]
+# Healthcheck: verificar arquivo de status
+HEALTHCHECK --interval=10s --timeout=5s --retries=5 --start-period=40s \
+  CMD [ -f /var/www/html/wp-config.php ] && [ -f /var/www/html/index.php ] || exit 1
+
+ENTRYPOINT ["/setup.sh"]

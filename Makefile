@@ -1,31 +1,31 @@
-.PHONY: all build up down clean fclean re logs status
-
-PATH_PASS = /home/bola/pass.txt
 COMPOSE_FILE = srcs/docker-compose.yml
 DATA_PATH = /home/$(USER)/data
+DOMAIN = Inception
+HOSTS_ENTRY = 127.0.0.1 $(DOMAIN)
 
-all: cpy build up
-
-cpy:
-	@if [ -f $(PATH_PASS) ]; then /bin/cp $(PATH_PASS) .env; else echo "Arquivo $(PATH_PASS) não encontrado!"; exit 1; fi
+all: build up
 
 build:
 	@echo "Building containers..."
-	docker-compose -f $(COMPOSE_FILE) build
+	docker compose -f $(COMPOSE_FILE) build
 
 up:
 	@echo "Starting containers..."
 	@mkdir -p $(DATA_PATH)/mariadb $(DATA_PATH)/wordpress
-	docker-compose -f $(COMPOSE_FILE) up -d
-
+	@if ! grep -q "$(DOMAIN)" /etc/hosts; then \
+		echo "Adding $(DOMAIN) to /etc/hosts..."; \
+		echo "$(HOSTS_ENTRY)" | sudo tee -a /etc/hosts > /dev/null; \
+	fi
+	docker compose -f $(COMPOSE_FILE) up -d
+	
 down:
 	@echo "Stopping containers..."
-	docker-compose -f $(COMPOSE_FILE) down
+	docker compose -f $(COMPOSE_FILE) down
 
 clean: down
 	@echo "Cleaning containers and images..."
-	docker-compose -f $(COMPOSE_FILE) down -v --rmi all
-	docker system prune -af
+	docker compose -f $(COMPOSE_FILE) down -v --rmi all
+	docker system prune -af --volumes
 
 fclean: clean
 	@echo "Full clean: removing data volumes..."
@@ -35,7 +35,10 @@ fclean: clean
 re: fclean all
 
 logs:
-	docker-compose -f $(COMPOSE_FILE) logs -f
+	docker compose -f $(COMPOSE_FILE) logs -f
 
 status:
-	docker-compose -f $(COMPOSE_FILE) ps
+	docker compose -f $(COMPOSE_FILE) ps
+
+
+.PHONY: all build up down clean fclean re logs status
