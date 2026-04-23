@@ -311,10 +311,7 @@ Inception/
 │       ├── wordpress/
 │       └── redis/
 ├── docs/
-│   ├── ARCHITECTURE.md
-│   ├── REDIS-DETAILED.md
-│   ├── SERVICES-EXPLAINED.md
-│   └── DEPLOYMENT.md
+│   ├── SERVICES-OVERVIEW.md
 └── README.md
 ```
 
